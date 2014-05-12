@@ -1,0 +1,38 @@
+#board {
+	width: 432px;
+	height: 432px;
+    margin: 0 auto;
+    border: solid 1px black;
+
+}
+#menu {
+    float: left;
+    width: 150px;
+    height: 300px;
+    padding: 10px;
+}
+#menu_elements{
+    padding: 5px;
+    /*margin: 5px;*/
+}
+.darkCell, .lightCell {
+	width: 50px;
+	height: 50px;
+	float: left; /* выравнивание по краю*/
+	padding:0px;
+	margin: 0px;
+	
+}
+.darkCell {
+	background-color: #6d3c0c; /*url('dark.png')*/ 
+	border: 2px solid #6d3c0c;
+}
+.lightCell {
+	background-color: #fbecdb; /* url('light.png');*/
+	border: 2px solid #fbecdb;
+}
+
+.checked {
+	border: 2px solid red;
+
+}
