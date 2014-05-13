@@ -108,11 +108,11 @@ socket.on('moveFigure', function(obj){
     if (obj.result == true) {
 		if (obj.ccolor != activeColor.current)
 			changeColor();
-		$(figure).parent().toggleClass('checked');
+		$(figure).parent().removeClass('checked');
 		$(c).append(figure);
 		$('[x=' + obj.x2 + ']' + '[y=' + obj.y2 + ']').empty();
     }else{
-    	$(figure).parent().toggleClass('checked');
+    	$(figure).parent().removeClass('checked');
     }
 });
 
@@ -139,24 +139,24 @@ socket.on('attackFigure', function(obj){
 		if (obj.result==true){
 			if (obj.ccolor!=activeColor.current)
 				changeColor();
-			$(figure).parent().toggleClass('checked');
+			$(figure).parent().removeClass('checked');
 			$(c).empty();
 			$(c).append(figure);
 		}
 		else{
-			$(figure).parent().toggleClass('checked');
+			$(figure).parent().removeClass('checked');
 		}
 	}
     if (obj.type=="pawn"|| obj.type=="rook" || obj.type=="bishop" || obj.type=="queen" || obj.type=="king"){
         if (obj.result=="Fire"){
             if (obj.ccolor!=activeColor.current)
                 changeColor();
-            $(figure).parent().toggleClass('checked');
+            $(figure).parent().removeClass('checked');
             $(c).empty();
             $(c).append(figure);
         }
         else{
-        	$(figure).parent().toggleClass('checked');
+        	$(figure).parent().removeClass('checked');
         }
     }
 });
