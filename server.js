@@ -3,7 +3,7 @@ var http = require('http');
 var app = express();
 
 // configuration settings for PORT
-app.set('port', process.env.PORT || 80);
+app.set('port', process.env.PORT || 8080);
 
 // configure routing
 app.get('/', function(req, res) {
