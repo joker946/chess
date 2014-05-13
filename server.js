@@ -357,7 +357,8 @@ function CanKingStep(_cx,_cy,_fx,_fy){
 	var cy = parseInt(_cy);
 	var fx = parseInt(_fx);
 	var fy = parseInt(_fy);
-	if ((mas[fx][fy].child.color==activeColor.enemy.charAt(0))&&((fx-cx==1&&fy-cy==0)||
+	if ((mas[cx][cy].child.color==activeColor.enemy.charAt(0))&&
+	   ((fx-cx==1&&fy-cy==0)||
 		(fx-cx==1&&fy-cy==-1)||
 		(fx-cx==0&&fy-cy==-1)||
 		(fx-cx==-1&&fy-cy==-1)||
