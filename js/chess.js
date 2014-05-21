@@ -133,13 +133,13 @@ socket.on('step', function(cx, cy, fx, fy){
 		$(figure).parent().removeClass('checked');
 	}
 });
+var Color;
 socket.on('start', function(mes){
 	console.log(mes);
-	var Color=mes;
+	Color=mes;
 });
 function Move (figure) {
-	if ($(figure).attr('color')==activeColor.current){
-    	//alert($(figure).parent().attr('x')+' '+ $(figure).parent().attr('y'));
+	if ($(figure).attr('color')==activeColor.current && Color==activeColor.current){
     	$(figure).parent().toggleClass('checked');		
     	var figureID = $(figure).parent().attr('id');
     	cell.unbind('click').click(function() {//this - cell
