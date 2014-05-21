@@ -1,4 +1,4 @@
-var socket = io.connect('http://localhost:8080');
+var socket = io.connect('http://194.58.100.119:80');
 //Board creating
 function CreateBoard (boardHeight, boardWidth) {
 	var board = $('#board');
