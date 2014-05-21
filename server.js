@@ -16,6 +16,10 @@ app.use("/figures", express.static(__dirname+'/figures'));
 var server = http.createServer(app).listen(app.get('port'), function() {
   console.log("Express listening on port: " + app.get('port'));
 });
+
+var io = require('socket.io').listen(server);
+io.set('log level', 0);
+
 var activeColor = {
 	black:"black",
 	white:"white",
@@ -46,34 +50,6 @@ function Cell(x,y, child){
 		this.isFree = true;
 	}
 }
-
-var blackPawn =   new Figure("b", "p", 'true');
-var whitePawn =   new Figure("w", "p", 'true');
-var blackRook =   new Figure("b", "r");
-var whiteRook =   new Figure("w", "r");
-var blackKnight = new Figure("b", "k");
-var whiteKnight = new Figure("w", "k");
-var blackBishop = new Figure("b", "b");
-var whiteBishop = new Figure("w", "b");
-var blackQueen =  new Figure("b", "q");
-var whiteQueen =  new Figure("w", "q");
-var blackKing =   new Figure("b", "K");
-var whiteKing =   new Figure("w", "K");
-function Init(){
-	blackPawn =   new Figure("b", "p", 'true');
-	whitePawn =   new Figure("w", "p", 'true');
-	blackRook =   new Figure("b", "r");
-	whiteRook =   new Figure("w", "r");
-	blackKnight = new Figure("b", "k");
-	whiteKnight = new Figure("w", "k");
-	blackBishop = new Figure("b", "b");
-	whiteBishop = new Figure("w", "b");
-	blackQueen =  new Figure("b", "q");
-	whiteQueen =  new Figure("w", "q");
-	blackKing =   new Figure("b", "K");
-	whiteKing =   new Figure("w", "K");
-}
-var Zero = new Figure(' ',' ');
 var n = 8, m = 8;
 var mas = [];
 var out = [];
@@ -81,22 +57,22 @@ function dot(){
 	for (var i=0;i<n;i++){
 		mas[i]=[];
 	}
-	mas[0][0] = new Cell(0,0,blackRook);
-	mas[0][7] = new Cell(0,7,blackRook);
-	mas[7][0] = new Cell(7,0,whiteRook);
-	mas[7][7] = new Cell(7,7,whiteRook);
-	mas[0][1] = new Cell(0,1,blackKnight);
-	mas[0][6] = new Cell(0,6,blackKnight);
-	mas[7][1] = new Cell(7,1,whiteKnight);
-	mas[7][6] = new Cell(7,6,whiteKnight);
-	mas[0][2] = new Cell(0,2,blackBishop);
-	mas[0][5] = new Cell(0,5,blackBishop);
-	mas[7][2] = new Cell(7,2,whiteBishop);
-	mas[7][5] = new Cell(7,5,whiteBishop);
-	mas[0][3] = new Cell(0,3,blackQueen);
-	mas[7][3] = new Cell(7,3,whiteQueen);
-	mas[0][4] = new Cell(0,4,blackKing);
-	mas[7][4] = new Cell(7,4,whiteKing);
+	mas[0][0] = new Cell(0,0,new Figure("b", "r"));
+	mas[0][7] = new Cell(0,7,new Figure("b", "r"));
+	mas[7][0] = new Cell(7,0,new Figure("w", "r"));
+	mas[7][7] = new Cell(7,7,new Figure("w", "r"));
+	mas[0][1] = new Cell(0,1,new Figure("b", "k"));
+	mas[0][6] = new Cell(0,6,new Figure("b", "k"));
+	mas[7][1] = new Cell(7,1,new Figure("w", "k"));
+	mas[7][6] = new Cell(7,6,new Figure("w", "k"));
+	mas[0][2] = new Cell(0,2,new Figure("b", "b"));
+	mas[0][5] = new Cell(0,5,new Figure("b", "b"));
+	mas[7][2] = new Cell(7,2,new Figure("w", "b"));
+	mas[7][5] = new Cell(7,5,new Figure("w", "b"));
+	mas[0][3] = new Cell(0,3,new Figure("b", "q"));
+	mas[7][3] = new Cell(7,3,new Figure("w", "q"));
+	mas[0][4] = new Cell(0,4,new Figure("b", "K"));
+	mas[7][4] = new Cell(7,4,new Figure("w", "K"));
 	for (var i=0;i<n;i++){
 		mas[1][i] = new Cell(1,i,new Figure("b","p",'true'));
 	}
@@ -105,7 +81,7 @@ function dot(){
 	}
 	for (var i=2;i<6;i++){
 		for (var j=0;j<m;j++){
-			mas[i][j]= new Cell(i,j,Zero);
+			mas[i][j]= new Cell(i,j,new Figure(' ',' '));
 		}
 	}
 }
@@ -131,24 +107,29 @@ function toString(){
 	}
 }
 function ResetBoard(){
-	Init();
 	dot();
 	toString();
 	console.log(out);
 }
 ResetBoard();
-
+function board(array, outarray){
+	this.array = array;
+	this.outarray = outarray;
+	dot();
+	toString();
+	console.log(outarray);
+}
 /**
  * @return {string}
  * @return {string}
  */
-function CanPawn(_cx, _cy, _fx, _fy, color, isf){
+function CanPawn(_cx, _cy, _fx, _fy, isf){
 	var cx = parseInt(_cx);
 	var cy = parseInt(_cy);
 	var fx = parseInt(_fx);
 	var fy = parseInt(_fy);
     var movemax=isf;
-	if (color=='white'){
+	if (mas[fx][fy].child.color=='w'){
 		if (cy==fy){
 			if (fx-cx<=movemax && fx-cx>0){
 				while (fx>cx){
@@ -161,11 +142,11 @@ function CanPawn(_cx, _cy, _fx, _fy, color, isf){
 				}
 			}
 		}
-        else if ((fx-1==cx && fy+1==cy)||(fx-1==cx && fy-1==cy)){
-            return "Fire";
+        else if (((fx-1==cx && fy+1==cy)||(fx-1==cx && fy-1==cy))&&mas[cx][cy].child.color=='b'){
+            return true;
         }
 	}
-    else if (color=='black'){
+    else if (mas[fx][fy].child.color=='b'){
         if (cy==fy){
             if (cx-fx<=movemax&& cx-fx>0){
                 while (cx>fx){
@@ -178,8 +159,8 @@ function CanPawn(_cx, _cy, _fx, _fy, color, isf){
                 }
             }
         }
-        else if ((fx+1==cx && fy+1==cy)||(fx+1==cx && fy-1==cy)){
-            return "Fire";
+        else if (((fx+1==cx && fy+1==cy)||(fx+1==cx && fy-1==cy))&&mas[cx][cy].child.color=='w'){
+            return true;
         }
     }
 }
@@ -250,7 +231,7 @@ function CanRookStep(_cx, _cy, _fx, _fy) {
 		}
 	}
 	if (foundFigure)return false;
-	else if (canMove&&canAttack) return "Fire";
+	else if (canMove&&canAttack) return true;
 	else if (canMove) return true;
 }
 function CanKnightStep(_cx,_cy,_fx,_fy){
@@ -340,7 +321,7 @@ function CanBishopStep(_cx,_cy,_fx,_fy){
 		}
 	}
 	if (foundFigure)return false;
-	else if (canMove&&canAttack) return "Fire";
+	else if (canMove&&canAttack) return true;
 	else if (canMove) return true;
 }
 function CanQueenStep(_cx,_cy,_fx,_fy){
@@ -348,7 +329,6 @@ function CanQueenStep(_cx,_cy,_fx,_fy){
 	var cy = parseInt(_cy);
 	var fx = parseInt(_fx);
 	var fy = parseInt(_fy);
-	if (CanBishopStep(cx, cy, fx, fy)=="Fire" || CanRookStep(cx, cy, fx, fy)=="Fire")return "Fire";
 	if (CanBishopStep(cx, cy, fx, fy)==true || CanRookStep(cx, cy, fx, fy)==true)return true;
 	return false;
 }
@@ -366,7 +346,7 @@ function CanKingStep(_cx,_cy,_fx,_fy){
 		(fx-cx==-1&&fy-cy==1)||
 		(fx-cx==0&&fy-cy==1)||
 		(fx-cx==1&&fy-cy==1))){
-		return "Fire";
+		return true;
 	}
 	if ((fx-cx==1&&fy-cy==0)||
 		(fx-cx==1&&fy-cy==-1)||
@@ -378,128 +358,77 @@ function CanKingStep(_cx,_cy,_fx,_fy){
 		(fx-cx==1&&fy-cy==1)) return true;
 	return false;
 }
-var io = require('socket.io').listen(server);
-io.set('log level', 0);
-var rooms = {};
+
+var rooms = [];
+function Room(id) {
+	this.player1=null;
+	this.player2=null;
+	this.roomid=id;
+};
+var k=1;
 io.sockets.on('connection', function(socket) {
+	if (k%2==0){
+		socket.join('room'+(k-1));
+		socket.broadcast.in('room'+(k-1)).emit('start','white');
+		socket.emit('start','black');
+		k++;
+	}else{
+		socket.join('room'+k);
+		k++;
+	}
+	/*socket.on('step', function(cx,cy,fx,fy){
+		socket.broadcast.in('room'+k).emit('step',cx,cy,fx,fy);
+	});*/
 	socket.on('auth', function(message){
-		rooms[message.roomid] = message.roomid;
-        rooms[message.roomid][message.userid] = message.userid;
-        console.log(rooms[message.roomid]+' '+rooms[message.roomid][message.userid]);
+		if (rooms[message.roomid]===undefined){
+			var session = new Room(message.roomid);
+			session.player1=message.userid;
+        	rooms[message.roomid]=session;
+        }else if (rooms[message.roomid].player2===null){
+        	rooms[message.roomid].player2=message.userid;
+        }else{
+        	socket.emit('error_room_is_full', 'Room is full. Please, select another one.');
+        }
+        console.log(rooms[message.roomid]);
 	});
 	socket.on('reset_board', function(message){
 		if (message.m=='reset'){
 			ResetBoard();
 		}
 	});
-	socket.on('sendMove', function(obj){
+	socket.on('step', function(cx,cy,fx,fy){
+	var signature = mas[fx][fy].child.color+''+mas[fx][fy].child.type;
         var result;
-		if (obj.type=="knight"){
-			result = CanKnightStep(obj.x1,obj.y1,obj.x2,obj.y2);
+		if (signature=="wk"||signature=="bk"){
+			result = CanKnightStep(cx,cy,fx,fy);
 		}
-		if (obj.type=="pawn"){
-            if (mas[obj.x2][obj.y2].child.isFirstMove=='true') {
-                result = CanPawn(obj.x1, obj.y1, obj.x2, obj.y2, obj.ccolor, 2);
+		if (signature=="wp"||signature=="bp"){
+            if (mas[fx][fy].child.isFirstMove=='true') {
+                result = CanPawn(cx,cy,fx,fy, 2);
             }else{
-                result = CanPawn(obj.x1, obj.y1, obj.x2, obj.y2, obj.ccolor, 1);
+                result = CanPawn(cx,cy,fx,fy, 1);
             }
 		}
-		if (obj.type=="rook"){
-			result = CanRookStep(obj.x1, obj.y1, obj.x2, obj.y2);
+		if (signature=="wr"||signature=="br"){
+			result = CanRookStep(cx,cy,fx,fy);
 		}
-		if (obj.type=="bishop"){
-			result = CanBishopStep(obj.x1, obj.y1, obj.x2, obj.y2);
+		if (signature=="wb"||signature=="bb"){
+			result = CanBishopStep(cx,cy,fx,fy);
 		}
-		if (obj.type=="queen"){
-			result = CanQueenStep(obj.x1, obj.y1, obj.x2, obj.y2);
+		if (signature=="wq"||signature=="bq"){
+			result = CanQueenStep(cx, cy, fx, fy);
 		}
-		if (obj.type=="king"){
-			result = CanKingStep(obj.x1, obj.y1, obj.x2, obj.y2);
+		if (signature=="wK"||signature=="bK"){
+			result = CanKingStep(cx, cy, fx, fy);
 		}
-		if (result==true){
-		    mas[obj.x2][obj.y2].child.isFirstMove='false';
-			Move(obj.x1,obj.y1,obj.x2,obj.y2);
+		if (result==true){//если можем пойти
+		    mas[fx][fy].child.isFirstMove='false';
+			Move(cx,cy,fx,fy);
 			console.log(out);
-			activeColor.current=obj.ccolor;
-			changeColor();
-			obj.ccolor=activeColor.current;
+			io.sockets.emit('step', cx, cy, fx, fy);
+		}else{// если не можем
+			io.sockets.emit('step', -1, -1, fx, fy);
 		}
-		obj.result=result;
-		io.sockets.emit('moveFigure', obj);
 		
-	});
-	
-	socket.on('sendAttack', function(obj){
-		var result;
-		if (obj.type=="knight"){
-			result = CanKnightStep(obj.x1,obj.y1,obj.x2,obj.y2);
-			if (result){
-				Move(obj.x1,obj.y1,obj.x2,obj.y2);
-				console.log(out);
-				activeColor.current=obj.ccolor;
-				changeColor();
-				obj.ccolor=activeColor.current;
-
-			}
-		}
-        if (obj.type=="pawn"){
-            if (mas[obj.x2][obj.y2].child.isFirstMove=='true') {
-                result = CanPawn(obj.x1, obj.y1, obj.x2, obj.y2, obj.ccolor, 2);
-            }else{
-                result = CanPawn(obj.x1, obj.y1, obj.x2, obj.y2, obj.ccolor, 1);
-            }
-            if (result=="Fire"){
-            	if (mas[obj.x2][obj.y2].child.hasOwnProperty('ifFirstMove'))
-            		mas[obj.x2][obj.y2].child.isFirstMove='false';
-                Move(obj.x1,obj.y1,obj.x2,obj.y2);
-                console.log(out);
-                activeColor.current=obj.ccolor;
-				changeColor();
-				obj.ccolor=activeColor.current;
-            }
-        }
-        if (obj.type=="rook"){
-        	result = CanRookStep(obj.x1, obj.y1, obj.x2, obj.y2);
-        	if (result=="Fire"){
-        		Move(obj.x1,obj.y1,obj.x2,obj.y2);
-				console.log(out);
-				activeColor.current=obj.ccolor;
-				changeColor();
-				obj.ccolor=activeColor.current;
-        	}
-        }
-        if (obj.type=="bishop"){
-        	result = CanBishopStep(obj.x1, obj.y1, obj.x2, obj.y2);
-        	if (result=="Fire"){
-        		Move(obj.x1,obj.y1,obj.x2,obj.y2);
-				console.log(out);
-				activeColor.current=obj.ccolor;
-				changeColor();
-				obj.ccolor=activeColor.current;
-        	}
-        }
-        if (obj.type=="queen"){
-        	result = CanQueenStep(obj.x1, obj.y1, obj.x2, obj.y2);
-        	if (result=="Fire"){
-        		Move(obj.x1,obj.y1,obj.x2,obj.y2);
-				console.log(out);
-				activeColor.current=obj.ccolor;
-				changeColor();
-				obj.ccolor=activeColor.current;
-        	}
-        }
-        if (obj.type=="king"){
-        	result = CanKingStep(obj.x1, obj.y1, obj.x2, obj.y2);
-        	if (result=="Fire"){
-        		Move(obj.x1,obj.y1,obj.x2,obj.y2);
-				console.log(out);
-				activeColor.current=obj.ccolor;
-				changeColor();
-				obj.ccolor=activeColor.current;
-        	}
-        }
-        obj.result=result;
-        io.sockets.emit('attackFigure', obj);
-
 	});
 });

@@ -119,79 +119,56 @@ $(function() {
     });
 });
 
-socket.on('moveFigure', function(obj){
-	var figure = $('[x='+obj.x2+']'+'[y='+obj.y2+']').children();
-	var c = $('[x='+obj.x1+']'+'[y='+obj.y1+']')
-    if (obj.result == true) {
-		if (obj.ccolor != activeColor.current)
-			changeColor();
+socket.on('step', function(cx, cy, fx, fy){
+	if (cx!=-1){
+	var figure = $('[x='+fx+']'+'[y='+fy+']').children();
+	var c = $('[x='+cx+']'+'[y='+cy+']')
+	changeColor();
+	$(figure).parent().removeClass('checked');
+	$(c).empty();
+	$(c).append(figure);
+	$('[x=' + fx + ']' + '[y=' + fy + ']').empty();
+	}else{
+		var figure = $('[x='+fx+']'+'[y='+fy+']').children();
 		$(figure).parent().removeClass('checked');
-		$(c).append(figure);
-		$('[x=' + obj.x2 + ']' + '[y=' + obj.y2 + ']').empty();
-    }else{
-    	$(figure).parent().removeClass('checked');
-    }
-});
-socket.on('attackFigure', function(obj){
-	var figure = $('[x='+obj.x2+']'+'[y='+obj.y2+']').children();
-	var c = $('[x='+obj.x1+']'+'[y='+obj.y1+']')
-	if (obj.type=="knight"){
-		if (obj.result==true){
-			if (obj.ccolor!=activeColor.current)
-				changeColor();
-			$(figure).parent().removeClass('checked');
-			$(c).empty();
-			$(c).append(figure);
-		}
-		else{
-			$(figure).parent().removeClass('checked');
-		}
 	}
-    if (obj.type=="pawn"|| obj.type=="rook" || obj.type=="bishop" || obj.type=="queen" || obj.type=="king"){
-        if (obj.result=="Fire"){
-            if (obj.ccolor!=activeColor.current)
-                changeColor();
-            $(figure).parent().removeClass('checked');
-            $(c).empty();
-            $(c).append(figure);
-        }
-        else{
-        	$(figure).parent().removeClass('checked');
-        }
-    }
+});
+socket.on('start', function(mes){
+	console.log(mes);
+	var Color=mes;
 });
 function Move (figure) {
 	if ($(figure).attr('color')==activeColor.current){
     	//alert($(figure).parent().attr('x')+' '+ $(figure).parent().attr('y'));
-    	$(figure).parent().toggleClass('checked');
+    	$(figure).parent().toggleClass('checked');		
     	var figureID = $(figure).parent().attr('id');
     	cell.unbind('click').click(function() {//this - cell
 			var newID = $(this).attr('id');
 			console.log(newID);
 			var newID = $(this).attr('id');
-			var cx = $(this).attr('x');
-			var cy = $(this).attr('y');
 			var fx = $(figure).parent().attr('x');
 			var fy = $(figure).parent().attr('y');
+			var cx = $(this).attr('x');
+			var cy = $(this).attr('y');
 			var f_type = $(figure).attr('type');
 			var ob = {
 					x1:cx, 
 					y1:cy, 
 					x2:fx, 
-					y2:fy,
-					type:f_type,
-					ccolor:activeColor.current
+					y2:fy
 					};
+			if (fx!==undefined && fy!==undefined){
 			if (IsEmpty(this)){
 				console.log(cx+' '+cy+' '+fx+' '+fy);
-				socket.emit('sendMove', ob);
+				socket.emit('step', cx,cy,fx,fy);
 				figure=null;
 				}
 			else if ($(this).children().attr('color')!=activeColor.current && $(this).children().length!=0){
-				socket.emit('sendAttack', ob);
+				socket.emit('step', cx, cy, fx, fy);
 				figure=null;
 			}else{
 				$(figure).parent().toggleClass('checked');
+			}
 			}
     	});
     }
