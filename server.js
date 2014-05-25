@@ -3,7 +3,7 @@ var http = require('http');
 var app = express();
 
 // configuration settings for PORT
-app.set('port', process.env.PORT || 80);
+app.set('port', process.env.PORT || 8080);
 
 // configure routing
 app.get('/', function(req, res) {
@@ -20,21 +20,7 @@ var server = http.createServer(app).listen(app.get('port'), function() {
 var io = require('socket.io').listen(server);
 io.set('log level', 0);
 
-var activeColor = {
-	black:"black",
-	white:"white",
-	current:"white",
-	enemy:"black"
-	};
-function changeColor() {
-	if (activeColor.current==activeColor.white){
-		activeColor.current=activeColor.black;
-		activeColor.enemy=activeColor.white;
-	}else{
-		activeColor.current=activeColor.white;
-		activeColor.enemy=activeColor.black;
-	}
-}
+
 function Figure(color, type, isFirstMove){
 	this.color = color;
 	this.type = type;
@@ -113,8 +99,8 @@ function ResetBoard(){
 }
 ResetBoard();
 function board(array, outarray){
-	this.array = array;
-	this.outarray = outarray;
+	this.array = [];
+	this.outarray = [];
 	dot();
 	toString();
 	console.log(outarray);
@@ -134,7 +120,7 @@ function CanPawn(_cx, _cy, _fx, _fy, isf){
 			if (fx-cx<=movemax && fx-cx>0){
 				while (fx>cx){
 					fx--;
-					if ((fx==cx)&&(fy==cy)){
+					if ((fx==cx)&&(fy==cy)&&isEmpty(fx,fy)){
 						return true;
 					}else if (!isEmpty(fx,fy)){
 						return false;
@@ -143,7 +129,7 @@ function CanPawn(_cx, _cy, _fx, _fy, isf){
 			}
 		}
         else if (((fx-1==cx && fy+1==cy)||(fx-1==cx && fy-1==cy))&&mas[cx][cy].child.color=='b'){
-            return true;
+            return 'fire';
         }
 	}
     else if (mas[fx][fy].child.color=='b'){
@@ -151,7 +137,7 @@ function CanPawn(_cx, _cy, _fx, _fy, isf){
             if (cx-fx<=movemax&& cx-fx>0){
                 while (cx>fx){
                     fx++;
-                    if ((fx==cx)&&(fy==cy)){
+                    if ((fx==cx)&&(fy==cy)&&isEmpty(fx,fy)){
                         return true;
                     }else if (!isEmpty(fx,fy)){
                         return false;
@@ -160,7 +146,7 @@ function CanPawn(_cx, _cy, _fx, _fy, isf){
             }
         }
         else if (((fx+1==cx && fy+1==cy)||(fx+1==cx && fy-1==cy))&&mas[cx][cy].child.color=='w'){
-            return true;
+            return 'fire';
         }
     }
 }
@@ -171,67 +157,55 @@ function CanRookStep(_cx, _cy, _fx, _fy) {
 	var fy = parseInt(_fy);
 	var foundFigure=false;
 	var canMove = false;
-	var canAttack = false;
-	if ((cy==fy)&&(cx!=fx)){
-		if (cx>fx){
-			while (cx>fx){
-				fx++;
-				if ((fx==cx)&&(fy==cy)){
-					canMove=true;
-					if (mas[fx][fy].child.color==activeColor.enemy.charAt(0)){
-						canAttack=true;
+	if (mas[cx][cy].child.color!=mas[fx][fy].child.color){
+		if ((cy==fy)&&(cx!=fx)){
+			if (cx>fx){
+				while (cx>fx){
+					fx++;
+					if ((fx==cx)&&(fy==cy)){
+						canMove=true;
+					}
+					else if (mas[fx][fy].child.color!=' '){
+						foundFigure=true;
 					}
 				}
-				else if (mas[fx][fy].child.color!=' '){
-					foundFigure=true;
-				}
-			}
-		}else if (cx<fx) {
-			while (cx<fx){
-				fx--;
-				if ((fx==cx)&&(fy==cy)){
-					canMove=true;
-					if (mas[fx][fy].child.color==activeColor.enemy.charAt(0)){
-						canAttack=true;
+			}else if (cx<fx) {
+				while (cx<fx){
+					fx--;
+					if ((fx==cx)&&(fy==cy)){
+						canMove=true;
 					}
-				}
-				else if (mas[fx][fy].child.color!=' '){
-					foundFigure=true;
+					else if (mas[fx][fy].child.color!=' '){
+						foundFigure=true;
+					}
 				}
 			}
 		}
-	}
-	else if ((cy!=fy)&&(cx==fx)){
-		if (cy>fy){
-			while (cy>fy) {
-				fy++;
-				if ((fx==cx)&&(fy==cy)){
-					canMove=true;
-					if (mas[fx][fy].child.color==activeColor.enemy.charAt(0)){
-						canAttack=true;
+		else if ((cy!=fy)&&(cx==fx)){
+			if (cy>fy){
+				while (cy>fy) {
+					fy++;
+					if ((fx==cx)&&(fy==cy)){
+						canMove=true;
+					}
+					else if (mas[fx][fy].child.color!=' '){
+						foundFigure=true;
 					}
 				}
-				else if (mas[fx][fy].child.color!=' '){
-					foundFigure=true;
-				}
-			}
-		}else if (cy<fy) {
-			while (cy<fy){
-				fy--;
-				if ((fx==cx)&&(fy==cy)){
-					canMove=true;
-					if (mas[fx][fy].child.color==activeColor.enemy.charAt(0)){
-						canAttack=true;
+			}else if (cy<fy) {
+				while (cy<fy){
+					fy--;
+					if ((fx==cx)&&(fy==cy)){
+						canMove=true;
 					}
-				}
-				else if (mas[fx][fy].child.color!=' '){
-					foundFigure=true;
+					else if (mas[fx][fy].child.color!=' '){
+						foundFigure=true;
+					}
 				}
 			}
 		}
 	}
 	if (foundFigure)return false;
-	else if (canMove&&canAttack) return true;
 	else if (canMove) return true;
 }
 function CanKnightStep(_cx,_cy,_fx,_fy){
@@ -239,16 +213,14 @@ function CanKnightStep(_cx,_cy,_fx,_fy){
 	var cy = parseInt(_cy);
 	var fx = parseInt(_fx);
 	var fy = parseInt(_fy);
-	console.log(cx+' '+cy+' '+fx+' '+fy);
-
-	if (((fx-1==cx)&&(fy+2==cy))||
+	if ((((fx-1==cx)&&(fy+2==cy))||
 		((fx+1==cx)&&(fy+2==cy))||
 		((fx+2==cx)&&(fy+1==cy))||
 		((fx+2==cx)&&(fy-1==cy))||
 		((fx+1==cx)&&(fy-2==cy))||
 		((fx-1==cx)&&(fy-2==cy))||
 		((fx-2==cx)&&(fy-1==cy))||
-		((fx-2==cx)&&(fy+1==cy))) return true;
+		((fx-2==cx)&&(fy+1==cy)))&&mas[cx][cy].child.color!=mas[fx][fy].child.color) return true;
 	return false;
 }
 function CanBishopStep(_cx,_cy,_fx,_fy){
@@ -258,70 +230,58 @@ function CanBishopStep(_cx,_cy,_fx,_fy){
 	var fy = parseInt(_fy);
 	var foundFigure=false;
 	var canMove = false;
-	var canAttack = false;
-	if (cx<fx){
-		if (cy>fy){
-			while ((cx<fx)&&(cy>fy)){
-				fy++;
-				fx--;
-				if ((fx==cx)&&(fy==cy)){
-					canMove=true;
-					if (mas[fx][fy].child.color==activeColor.enemy.charAt(0)){
-						canAttack=true;
+	if (mas[cx][cy].child.color!=mas[fx][fy].child.color){
+		if (cx<fx){
+			if (cy>fy){
+				while ((cx<fx)&&(cy>fy)){
+					fy++;
+					fx--;
+					if ((fx==cx)&&(fy==cy)){
+						canMove=true;
+					}
+					else if (mas[fx][fy].child.color!=' '){
+						foundFigure=true;
 					}
 				}
-				else if (mas[fx][fy].child.color!=' '){
-					foundFigure=true;
+			}else if (cy<fy){
+				while ((cx<fx)&&(cy<fy)){
+					fx--;
+					fy--;
+					if ((fx==cx)&&(fy==cy)){
+						canMove=true;
+					}
+					else if (mas[fx][fy].child.color!=' '){
+						foundFigure=true;
+					}
 				}
 			}
-		}else if (cy<fy){
-			while ((cx<fx)&&(cy<fy)){
-				fx--;
-				fy--;
-				if ((fx==cx)&&(fy==cy)){
-					canMove=true;
-					if (mas[fx][fy].child.color==activeColor.enemy.charAt(0)){
-						canAttack=true;
+		}else if (cx>fx){
+			if (cy>fy){
+				while ((cx>fx)&&(cy>fy)){
+					fx++;
+					fy++;
+					if ((fx==cx)&&(fy==cy)){
+						canMove=true;
+					}
+					else if (mas[fx][fy].child.color!=' '){
+						foundFigure=true;
 					}
 				}
-				else if (mas[fx][fy].child.color!=' '){
-					foundFigure=true;
-				}
-			}
-		}
-	}else if (cx>fx){
-		if (cy>fy){
-			while ((cx>fx)&&(cy>fy)){
-				fx++;
-				fy++;
-				if ((fx==cx)&&(fy==cy)){
-					canMove=true;
-					if (mas[fx][fy].child.color==activeColor.enemy.charAt(0)){
-						canAttack=true;
+			}else if (cy<fy){
+				while ((cx>fx)&&(cy<fy)){
+					fx++;
+					fy--;
+					if ((fx==cx)&&(fy==cy)){
+						canMove=true;
 					}
-				}
-				else if (mas[fx][fy].child.color!=' '){
-					foundFigure=true;
-				}
-			}
-		}else if (cy<fy){
-			while ((cx>fx)&&(cy<fy)){
-				fx++;
-				fy--;
-				if ((fx==cx)&&(fy==cy)){
-					canMove=true;
-					if (mas[fx][fy].child.color==activeColor.enemy.charAt(0)){
-						canAttack=true;
+					else if (mas[fx][fy].child.color!=' '){
+						foundFigure=true;
 					}
-				}
-				else if (mas[fx][fy].child.color!=' '){
-					foundFigure=true;
 				}
 			}
 		}
 	}
 	if (foundFigure)return false;
-	else if (canMove&&canAttack) return true;
 	else if (canMove) return true;
 }
 function CanQueenStep(_cx,_cy,_fx,_fy){
@@ -329,7 +289,7 @@ function CanQueenStep(_cx,_cy,_fx,_fy){
 	var cy = parseInt(_cy);
 	var fx = parseInt(_fx);
 	var fy = parseInt(_fy);
-	if (CanBishopStep(cx, cy, fx, fy)==true || CanRookStep(cx, cy, fx, fy)==true)return true;
+	if ((CanBishopStep(cx, cy, fx, fy)==true || CanRookStep(cx, cy, fx, fy)==true)&&mas[cx][cy].child.color!=mas[fx][fy].child.color)return true;
 	return false;
 }
 function CanKingStep(_cx,_cy,_fx,_fy){
@@ -337,28 +297,415 @@ function CanKingStep(_cx,_cy,_fx,_fy){
 	var cy = parseInt(_cy);
 	var fx = parseInt(_fx);
 	var fy = parseInt(_fy);
-	if ((mas[cx][cy].child.color==activeColor.enemy.charAt(0))&&
-	   ((fx-cx==1&&fy-cy==0)||
+	if (((fx-cx==1&&fy-cy==0)||
 		(fx-cx==1&&fy-cy==-1)||
 		(fx-cx==0&&fy-cy==-1)||
 		(fx-cx==-1&&fy-cy==-1)||
 		(fx-cx==-1&&fy-cy==0)||
 		(fx-cx==-1&&fy-cy==1)||
 		(fx-cx==0&&fy-cy==1)||
-		(fx-cx==1&&fy-cy==1))){
-		return true;
-	}
-	if ((fx-cx==1&&fy-cy==0)||
-		(fx-cx==1&&fy-cy==-1)||
-		(fx-cx==0&&fy-cy==-1)||
-		(fx-cx==-1&&fy-cy==-1)||
-		(fx-cx==-1&&fy-cy==0)||
-		(fx-cx==-1&&fy-cy==1)||
-		(fx-cx==0&&fy-cy==1)||
-		(fx-cx==1&&fy-cy==1)) return true;
+		(fx-cx==1&&fy-cy==1))&&mas[cx][cy].child.color!=mas[fx][fy].child.color) return true;
 	return false;
 }
+function CheckMate(color, cx, cy){
+	var t=0;
+	var result=false;
+	var blackKing=null;
+	var whiteKing=null;
+	for (var i=0;i<8;i++){
+		for (var j=0;j<8;j++){
+			if ((mas[i][j].child.color+''+mas[i][j].child.type)=='bK'){
+				blackKing = mas[i][j];
+			}
+		}
+	}
+	for (var i=0;i<8;i++){
+		for (var j=0;j<8;j++){
+			if ((mas[i][j].child.color+''+mas[i][j].child.type)=='wK'){
+				whiteKing = mas[i][j];
+			}
+		}
+	}
+	if (blackKing==null){
+		return ('White wins');
+	}
+	if (whiteKing==null){
+		return ('Black wins');
+	}
+	for (var m=0;m<8;m++){
+		for (var n=0;n<8;n++){
+			if (color=='black'){
+				var signature = mas[m][n].child.color+''+mas[m][n].child.type;
 
+				if (signature=='bp'){
+					for (var i=0;i<8;i++){
+						for (var j=0;j<8;j++){
+
+							if (mas[m][n].child.isFirstMove=='true') {
+            					result = CanPawn(i,j,m,n, 2);
+        					}else{
+            					result = CanPawn(i,j,m,n, 1);
+        					}
+        					if (result){
+        						var temp = mas[i][j].child;
+        						Move(i,j,m,n);
+        						if (Shah()){
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}else{
+        							t++;
+        							//console.log('pawn'+t);
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}
+        					}
+						}
+					}
+				}
+				if (signature=='br'){
+					for (var i=0;i<8;i++){
+						for (var j=0;j<8;j++){
+							result = CanRookStep(i,j,m,n);
+        					if (result){
+        						var temp = mas[i][j].child;
+        						Move(i,j,m,n);
+        						if (Shah()){
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}else{
+        							t++;
+        							//console.log('rook'+t);
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}
+        					}
+						}
+					}
+				}
+				if (signature=='bk'){
+					for (var i=0;i<8;i++){
+						for (var j=0;j<8;j++){
+							result = CanKnightStep(i,j,m,n);
+        					if (result){
+        						var temp = mas[i][j].child;
+        						Move(i,j,m,n);
+        						if (Shah()){
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}else{
+        							t++;
+        							console.log('Knight'+t);
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}
+        					}
+						}
+					}
+				}
+				if (signature=='bb'){
+					for (var i=0;i<8;i++){
+						for (var j=0;j<8;j++){
+							result = CanBishopStep(i,j,m,n);
+        					if (result){
+        						var temp = mas[i][j].child;
+        						Move(i,j,m,n);
+        						if (Shah()){
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}else{
+        							t++;
+        							console.log('Bishop'+t);
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}
+        					}
+						}
+					}
+				}
+				if (signature=='bq'){
+					for (var i=0;i<8;i++){
+						for (var j=0;j<8;j++){
+							result = CanQueenStep(i,j,m,n);
+        					if (result){
+        						var temp = mas[i][j].child;
+        						Move(i,j,m,n);
+        						if (Shah()){
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}else{
+        							t++;
+        							console.log('Queen'+t);
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}
+        					}
+						}
+					}
+				}
+				if (signature=='bK'){
+					for (var i=0;i<8;i++){
+						for (var j=0;j<8;j++){
+							result = CanKingStep(i,j,m,n);
+        					if (result){
+        						console.log(i+' '+j)
+        						var temp = mas[i][j].child;
+        						Move(i,j,m,n);
+        						if (Shah()){
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}else{
+        							t++;
+        							console.log('King'+t);
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}
+        					}
+						}
+					}
+				}
+			}
+			if (color=='white'){
+				var signature = mas[m][n].child.color+''+mas[m][n].child.type;
+				if (signature=='wp'){
+					for (var i=0;i<8;i++){
+						for (var j=0;j<8;j++){
+
+							if (mas[m][n].child.isFirstMove=='true') {
+            					result = CanPawn(i,j,m,n, 2);
+        					}else{
+            					result = CanPawn(i,j,m,n, 1);
+        					}
+        					if (result){
+        						var temp = mas[i][j].child;
+        						Move(i,j,m,n);
+        						if (Shah()){
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}else{
+        							t++;
+        							//console.log('pawn'+t);
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}
+        					}
+						}
+					}
+				}
+				if (signature=='wr'){
+					for (var i=0;i<8;i++){
+						for (var j=0;j<8;j++){
+							result = CanRookStep(i,j,m,n);
+        					if (result){
+        						var temp = mas[i][j].child;
+        						Move(i,j,m,n);
+        						if (Shah()){
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}else{
+        							t++;
+        							//console.log('rook'+t);
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}
+        					}
+						}
+					}
+				}
+				if (signature=='wk'){
+					for (var i=0;i<8;i++){
+						for (var j=0;j<8;j++){
+							result = CanKnightStep(i,j,m,n);
+        					if (result){
+        						var temp = mas[i][j].child;
+        						Move(i,j,m,n);
+        						if (Shah()){
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}else{
+        							t++;
+        							console.log('Knight'+t);
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}
+        					}
+						}
+					}
+				}
+				if (signature=='wb'){
+					for (var i=0;i<8;i++){
+						for (var j=0;j<8;j++){
+							result = CanBishopStep(i,j,m,n);
+        					if (result){
+        						var temp = mas[i][j].child;
+        						Move(i,j,m,n);
+        						if (Shah()){
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}else{
+        							t++;
+        							console.log('Bishop'+t);
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}
+        					}
+						}
+					}
+				}
+				if (signature=='wq'){
+					for (var i=0;i<8;i++){
+						for (var j=0;j<8;j++){
+							result = CanQueenStep(i,j,m,n);
+        					if (result){
+        						var temp = mas[i][j].child;
+        						Move(i,j,m,n);
+        						if (Shah()){
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}else{
+        							t++;
+        							console.log('Queen'+t);
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}
+        					}
+						}
+					}
+				}
+				if (signature=='wK'){
+					for (var i=0;i<8;i++){
+						for (var j=0;j<8;j++){
+							result = CanKingStep(i,j,m,n);
+        					if (result){
+        						console.log(i+' '+j)
+        						var temp = mas[i][j].child;
+        						Move(i,j,m,n);
+        						if (Shah()){
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}else{
+        							t++;
+        							console.log('King'+t);
+        							Move(m,n,i,j);
+        							mas[i][j].child=temp;
+        						}
+        					}
+						}
+					}
+				}
+			}
+		}
+	}
+	console.log(t);
+	if (t==0){
+		return true;
+	}
+	return false;
+}
+function Shah(){
+	var result;
+	var blackKing=null;
+	var whiteKing=null;
+	for (var i=0;i<8;i++){
+		for (var j=0;j<8;j++){
+			if ((mas[i][j].child.color+''+mas[i][j].child.type)=='bK'){
+				blackKing = mas[i][j];
+			}
+		}
+	}
+	for (var i=0;i<8;i++){
+		for (var j=0;j<8;j++){
+			if ((mas[i][j].child.color+''+mas[i][j].child.type)=='wK'){
+				whiteKing = mas[i][j];
+			}
+		}
+	}
+	if (blackKing==null){
+		return ('White wins');
+	}
+	if (whiteKing==null){
+		return ('Black wins');
+	}
+	for (var i=0;i<8;i++){
+		for (var j=0;j<8;j++){
+			if (mas[i][j].child.color=='w'){
+				var signature = mas[i][j].child.color+''+mas[i][j].child.type;
+				if (signature=='wp'){
+					if (mas[i][j].child.isFirstMove=='true') {
+            			result = CanPawn(blackKing.x,blackKing.y,i,j, 2);
+        			}else{
+            			result = CanPawn(blackKing.x,blackKing.y,i,j, 1);
+        			}
+        			if (result=='fire') return true;
+				}
+				if (signature=='wr'){
+					result = CanRookStep(blackKing.x,blackKing.y,i,j);
+				}
+				if (signature=="wk"){
+					result = CanKnightStep(blackKing.x,blackKing.y,i,j);
+				}
+				if (signature=="wb"){
+					result = CanBishopStep(blackKing.x,blackKing.y,i,j);
+				}
+				if (signature=="wq"){
+					result = CanQueenStep(blackKing.x,blackKing.y,i,j);
+				}
+				if (signature=="wK"){
+					result = CanKingStep(blackKing.x,blackKing.y,i,j);
+				}
+				if (result==true){
+					
+					return true;
+				}
+			}
+			if (mas[i][j].child.color=='b'){
+				var signature = mas[i][j].child.color+''+mas[i][j].child.type;
+				if (signature=='bp'){
+					if (mas[i][j].child.isFirstMove=='true') {
+            			result = CanPawn(whiteKing.x,whiteKing.y,i,j, 2);
+        			}else{
+            			result = CanPawn(whiteKing.x,whiteKing.y,i,j, 1);
+        			}
+        			if (result=='fire') return true;
+				}
+				if (signature=='br'){
+					result = CanRookStep(whiteKing.x,whiteKing.y,i,j);
+				}
+				if (signature=="bk"){
+					result = CanKnightStep(whiteKing.x,whiteKing.y,i,j);
+				}
+				if (signature=="bb"){
+					result = CanBishopStep(whiteKing.x,whiteKing.y,i,j);
+				}
+				if (signature=="bq"){
+					result = CanQueenStep(whiteKing.x,whiteKing.y,i,j);
+				}
+				if (signature=="bK"){
+					result = CanKingStep(whiteKing.x,whiteKing.y,i,j);
+				}
+				if (result==true){
+					
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+var activeColor = {
+	black:"black",
+	white:"white",
+	current:"white",
+	enemy:"black"
+	};
+function changeColor() {
+	if (activeColor.current==activeColor.white){
+		activeColor.current=activeColor.black;
+		activeColor.enemy=activeColor.white;
+	}else{
+		activeColor.current=activeColor.white;
+		activeColor.enemy=activeColor.black;
+	}
+}
 var rooms = [];
 function Room(id) {
 	this.player1=null;
@@ -376,9 +723,6 @@ io.sockets.on('connection', function(socket) {
 		socket.join('room'+k);
 		k++;
 	}
-	/*socket.on('step', function(cx,cy,fx,fy){
-		socket.broadcast.in('room'+k).emit('step',cx,cy,fx,fy);
-	});*/
 	socket.on('auth', function(message){
 		if (rooms[message.roomid]===undefined){
 			var session = new Room(message.roomid);
@@ -392,7 +736,7 @@ io.sockets.on('connection', function(socket) {
         console.log(rooms[message.roomid]);
 	});
 	socket.on('reset_board', function(message){
-		if (message.m=='reset'){
+		if (message=='reset'){
 			ResetBoard();
 		}
 	});
@@ -421,13 +765,23 @@ io.sockets.on('connection', function(socket) {
 		if (signature=="wK"||signature=="bK"){
 			result = CanKingStep(cx, cy, fx, fy);
 		}
-		if (result==true){//если можем пойти
+		if (result==true || result=='fire'){//если можем пойти
 		    mas[fx][fy].child.isFirstMove='false';
+		    changeColor();
 			Move(cx,cy,fx,fy);
 			console.log(out);
-			io.sockets.emit('step', cx, cy, fx, fy);
+			if (Shah()){
+				console.log("Shah");
+				io.sockets.in('room'+(k-2)).emit('finish', 'Шах!');
+			}
+			if (CheckMate(activeColor.enemy, cx,cy)==true){
+				console.log("Mate!");
+				io.sockets.in('room'+(k-2)).emit('finish', 'Шах и Мат!');
+			}
+			
+			io.sockets.in('room'+(k-2)).emit('step', cx, cy, fx, fy);
 		}else{// если не можем
-			io.sockets.emit('step', -1, -1, fx, fy);
+			io.sockets.in('room'+(k-2)).emit('step', -1, -1, fx, fy);
 		}
 		
 	});

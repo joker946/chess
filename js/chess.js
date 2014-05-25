@@ -1,4 +1,4 @@
-var socket = io.connect('http://194.58.100.119:80');
+var socket = io.connect('http://localhost:8080');
 //Board creating
 function CreateBoard (boardHeight, boardWidth) {
 	var board = $('#board');
@@ -94,14 +94,6 @@ function IsEmpty (cell) {
     if ($(cell).find('img').length == 0) return true;
     return false;
 };
-function IsOurs(cell){
-	if ($(cell).attr('color')==activeColor.current)
-	{ 
-	return true;
-	}
-	return false;
-};
-
 $(function() {
     $('#accept').click(function () {
         var message = {
@@ -113,23 +105,24 @@ $(function() {
         socket.emit('auth', message);
     });
     $('#reset').click(function () {
-    	var message = {m:'reset'};
-    	socket.emit('reset_board', message);
+    	socket.emit('reset_board', 'reset');
     	location.reload();
     });
 });
-
+socket.on('finish', function(message){
+    $('#menu_elements').append('<br>'+ message);
+});
 socket.on('step', function(cx, cy, fx, fy){
+    var figure = $('[x='+fx+']'+'[y='+fy+']').children();
 	if (cx!=-1){
-	var figure = $('[x='+fx+']'+'[y='+fy+']').children();
-	var c = $('[x='+cx+']'+'[y='+cy+']')
-	changeColor();
-	$(figure).parent().removeClass('checked');
-	$(c).empty();
-	$(c).append(figure);
-	$('[x=' + fx + ']' + '[y=' + fy + ']').empty();
+    	var c = $('[x='+cx+']'+'[y='+cy+']')
+    	changeColor();
+    	$(figure).parent().removeClass('checked');
+    	$(c).empty();
+    	$(c).append(figure);
+    	$('[x=' + fx + ']' + '[y=' + fy + ']').empty();
+        $('#menu_elements').append('<br>' + cx + ' ' + cy + ' ' + fx + ' ' + fy);
 	}else{
-		var figure = $('[x='+fx+']'+'[y='+fy+']').children();
 		$(figure).parent().removeClass('checked');
 	}
 });
@@ -139,36 +132,26 @@ socket.on('start', function(mes){
 	Color=mes;
 });
 function Move (figure) {
-	if ($(figure).attr('color')==activeColor.current && Color==activeColor.current){
+	//if ($(figure).attr('color')==activeColor.current && Color==activeColor.current){
+        if ($(figure).attr('color')==activeColor.current){
     	$(figure).parent().toggleClass('checked');		
-    	var figureID = $(figure).parent().attr('id');
     	cell.unbind('click').click(function() {//this - cell
-			var newID = $(this).attr('id');
-			console.log(newID);
-			var newID = $(this).attr('id');
 			var fx = $(figure).parent().attr('x');
 			var fy = $(figure).parent().attr('y');
 			var cx = $(this).attr('x');
 			var cy = $(this).attr('y');
-			var f_type = $(figure).attr('type');
-			var ob = {
-					x1:cx, 
-					y1:cy, 
-					x2:fx, 
-					y2:fy
-					};
 			if (fx!==undefined && fy!==undefined){
-			if (IsEmpty(this)){
-				console.log(cx+' '+cy+' '+fx+' '+fy);
-				socket.emit('step', cx,cy,fx,fy);
-				figure=null;
-				}
-			else if ($(this).children().attr('color')!=activeColor.current && $(this).children().length!=0){
-				socket.emit('step', cx, cy, fx, fy);
-				figure=null;
-			}else{
-				$(figure).parent().toggleClass('checked');
-			}
+    			if (IsEmpty(this)){
+    				console.log(cx+' '+cy+' '+fx+' '+fy);
+    				socket.emit('step', cx,cy,fx,fy);
+    				figure=null;
+    			}
+    			else if ($(this).children().attr('color')!=activeColor.current && $(this).children().length!=0){
+    				socket.emit('step', cx, cy, fx, fy);
+    				figure=null;
+    			}else{
+    				$(figure).parent().toggleClass('checked');
+    			}
 			}
     	});
     }
@@ -189,7 +172,6 @@ function changeColor() {
 		activeColor.enemy=activeColor.black;
 	}
 }
-//пути к иконкам
 pathToLight = 'figures/light/White';
 pathToDark = 'figures/dark/Black';
 $(document).ready(function () {
@@ -197,9 +179,7 @@ $(document).ready(function () {
 	Dotting();
     figure ='img'; //клик только по белым
     $('#board').on('click', figure, function(){
-        //console.log ('IsEmpty:'+IsEmpty(this));
         clFigure = this;        
-        //alert($(this).parent().attr('x')+' '+ $(this).parent().attr('y'));
         Move(clFigure);
 	});
 });
