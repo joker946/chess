@@ -289,7 +289,8 @@ function CanQueenStep(_cx,_cy,_fx,_fy){
 	var cy = parseInt(_cy);
 	var fx = parseInt(_fx);
 	var fy = parseInt(_fy);
-	if ((CanBishopStep(cx, cy, fx, fy)==true || CanRookStep(cx, cy, fx, fy)==true)&&mas[cx][cy].child.color!=mas[fx][fy].child.color)return true;
+	if ((CanBishopStep(cx, cy, fx, fy)==true || CanRookStep(cx, cy, fx, fy)==true)&&
+		mas[cx][cy].child.color!=mas[fx][fy].child.color)return true;
 	return false;
 }
 function CanKingStep(_cx,_cy,_fx,_fy){
@@ -620,10 +621,10 @@ function Shah(){
 		}
 	}
 	if (blackKing==null){
-		return ('White wins');
+		return ('finish');
 	}
 	if (whiteKing==null){
-		return ('Black wins');
+		return ('finish');
 	}
 	for (var i=0;i<8;i++){
 		for (var j=0;j<8;j++){
@@ -712,16 +713,34 @@ function Room(id) {
 	this.player2=null;
 	this.roomid=id;
 };
-var k=1;
+var r=1;
 io.sockets.on('connection', function(socket) {
-	if (k%2==0){
-		socket.join('room'+(k-1));
-		socket.broadcast.in('room'+(k-1)).emit('start','white');
-		socket.emit('start','black');
-		k++;
-	}else{
-		socket.join('room'+k);
-		k++;
+	var closedRooms = [];
+
+	socket.join('room'+r);
+	
+	closedRooms ['room'+r] = 0; //0 - не закрыта;
+
+	roomsArr = io.sockets.manager.rooms; //массив всех комнат
+
+	for (var room in roomsArr) {
+		var gamersNum = roomsArr[room].length;
+		//slice нужен, т.к. room возвращает комнату в формате '/room1',
+		//а *.in() требует просто room. Срезаем '/''
+		_room = room.slice(1,room.length);
+		if (room != '') { //комната с пустым именем - общая комната со всеми сокетами
+			//console.log ('room: ' +room + ' arr[room]: '+roomsArr[room]+' игроков в комнате: '+roomsArr[room].length);
+			if ((gamersNum == 2) && (closedRooms[_room] == 0)) {
+				socket.broadcast.in(_room).emit('start', 'white');
+				socket.emit('start', 'black'); //отправляем сообщение о старте игры
+				console.log('Игра началась в комнате'+room+'!');
+				closedRooms[_room] = 1;
+				r++;
+			}
+		}
+	}
+	for (var room in closedRooms) {
+		console.log ('room: '+room+ ', закрыто? :'+ closedRooms[room]);
 	}
 	socket.on('auth', function(message){
 		if (rooms[message.roomid]===undefined){
@@ -740,49 +759,79 @@ io.sockets.on('connection', function(socket) {
 			ResetBoard();
 		}
 	});
-	socket.on('step', function(cx,cy,fx,fy){
-	var signature = mas[fx][fy].child.color+''+mas[fx][fy].child.type;
-        var result;
-		if (signature=="wk"||signature=="bk"){
-			result = CanKnightStep(cx,cy,fx,fy);
-		}
-		if (signature=="wp"||signature=="bp"){
-            if (mas[fx][fy].child.isFirstMove=='true') {
-                result = CanPawn(cx,cy,fx,fy, 2);
-            }else{
-                result = CanPawn(cx,cy,fx,fy, 1);
-            }
-		}
-		if (signature=="wr"||signature=="br"){
-			result = CanRookStep(cx,cy,fx,fy);
-		}
-		if (signature=="wb"||signature=="bb"){
-			result = CanBishopStep(cx,cy,fx,fy);
-		}
-		if (signature=="wq"||signature=="bq"){
-			result = CanQueenStep(cx, cy, fx, fy);
-		}
-		if (signature=="wK"||signature=="bK"){
-			result = CanKingStep(cx, cy, fx, fy);
-		}
-		if (result==true || result=='fire'){//если можем пойти
-		    mas[fx][fy].child.isFirstMove='false';
-		    changeColor();
-			Move(cx,cy,fx,fy);
-			console.log(out);
-			if (Shah()){
-				console.log("Shah");
-				io.sockets.in('room'+(k-2)).emit('finish', 'Шах!');
+	socket.on('step', function(fx,fy,cx,cy){
+		console.log ('Приняты координаты x: %d, y: %d, x1: %d, y1: %d', fx,fy,cx,cy);
+		for (var room in io.sockets.manager.roomClients[socket.id]) { //проход по всем комнатам
+			if (room != '') { //если не главная (с пустым названием)
+				var signature = mas[fx][fy].child.color+''+mas[fx][fy].child.type;
+        		var result;
+				if (signature=="wk"||signature=="bk"){
+					result = CanKnightStep(cx,cy,fx,fy);
+				}
+				if (signature=="wp"||signature=="bp"){
+            		if (mas[fx][fy].child.isFirstMove=='true') {
+                		result = CanPawn(cx,cy,fx,fy, 2);
+            		}else{
+                		result = CanPawn(cx,cy,fx,fy, 1);
+            		}
+				}
+				if (signature=="wr"||signature=="br"){
+					result = CanRookStep(cx,cy,fx,fy);
+				}
+				if (signature=="wb"||signature=="bb"){
+					result = CanBishopStep(cx,cy,fx,fy);
+				}
+				if (signature=="wq"||signature=="bq"){
+					result = CanQueenStep(cx, cy, fx, fy);
+				}
+				if (signature=="wK"||signature=="bK"){
+					result = CanKingStep(cx, cy, fx, fy);
+				}
+				if (result==true || result=='fire'){//если можем пойти
+				    mas[fx][fy].child.isFirstMove='false';
+				    changeColor();
+					Move(cx,cy,fx,fy);
+					console.log(out);
+					/*if (Shah()=='finish'){
+						socket.broadcast.in(_room).emit('finish');
+					}*/
+					if (Shah()){
+						console.log("Shah");
+						socket.broadcast.in(_room).emit('mes', 'Шах!');
+					}
+					if (CheckMate(activeColor.enemy, cx,cy)==true){
+						console.log("Mate!");
+						socket.broadcast.in(_room).emit('mes', 'Шах и Мат!');
+					}
+					
+					//socket.broadcast.in('room'+(k-2)).emit('step', fx, fy, cx, cy);
+				}
+			_room = room.slice(1,room.length); //отрезаем '/'
+			socket.broadcast.in(_room).emit('step',parseInt(fx),parseInt(fy),parseInt(cx),parseInt(cy)); //передаем данные клиенту в комнату из которой они пришли
 			}
-			if (CheckMate(activeColor.enemy, cx,cy)==true){
-				console.log("Mate!");
-				io.sockets.in('room'+(k-2)).emit('finish', 'Шах и Мат!');
+		} 
+	});
+	socket.on('finish', function() {
+		for (var room in io.sockets.manager.roomClients[socket.id]) { //проход по всем комнатам
+			if (room != '') { //если не главная (с пустым названием)
+				_room = room.slice(1,room.length); //отрезаем '/'
+				r = 1; //откатываем стартовую комнату на первую
+				closedRooms[_room] = 0; //комната свободна
+				socket.broadcast.in(_room).emit('finish'); //рассылаем команду "финиш"
 			}
-			
-			io.sockets.in('room'+(k-2)).emit('step', cx, cy, fx, fy);
-		}else{// если не можем
-			io.sockets.in('room'+(k-2)).emit('step', -1, -1, fx, fy);
 		}
+	});
+	socket.on('disconnect', function () {
+		for (var room in io.sockets.manager.roomClients[socket.id]) { //проход по всем комнатам в которых сидит данный игрок
+			if (room != '') { //если не главная (с пустым названием)
+				_room = room.slice(1,room.length); //отрезаем '/'
+				r = 1;	 //откатываем стартовую комнату на первую
+				closedRooms[_room] = 0; //комната свободна
+				socket.broadcast.in(_room).emit('disconnect'); //рассылаем "дисконнет"
+			}
+		}
+		
+		console.log ('Игрок отключен. Кол-во игроков: '+io.sockets.manager.rooms[''].length);
 		
 	});
 });
